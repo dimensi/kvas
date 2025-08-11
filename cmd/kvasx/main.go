@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"os"
 
@@ -9,6 +10,7 @@ import (
 	"kvasx/pkg/dns"
 	"kvasx/pkg/ipset"
 	"kvasx/pkg/route"
+	"kvasx/pkg/vpn"
 )
 
 var (
@@ -55,6 +57,7 @@ func main() {
 		Use:   "vpn",
 		Short: "VPN related commands",
 	}
+
 	vpnScanCmd := &cobra.Command{
 		Use:   "scan",
 		Short: "Scan VPN tunnel and configure iptables",
@@ -64,7 +67,47 @@ func main() {
 			return route.AddTunnelRule("tun0", "kvas_vpn")
 		},
 	}
+
+	vpnNewCmd := &cobra.Command{
+		Use:   "new",
+		Short: "Create new VPN configuration",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			reader := bufio.NewReader(os.Stdin)
+			s, err := vpn.PromptServer(reader)
+			if err != nil {
+				return err
+			}
+			if err := vpn.WriteConfig(s, vpn.ConfigFile); err != nil {
+				return err
+			}
+			fmt.Printf("Config written to %s\n", vpn.ConfigFile)
+			return nil
+		},
+	}
+
+	var checkDomain string
+	vpnStatusCmd := &cobra.Command{
+		Use:   "status",
+		Short: "Show VPN status and domain availability",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			running, dur, err := vpn.Status(checkDomain)
+			if err != nil {
+				return err
+			}
+			if !running {
+				fmt.Println("VPN daemon: stopped")
+				return nil
+			}
+			fmt.Println("VPN daemon: running")
+			fmt.Printf("Domain %s reachable in %v\n", checkDomain, dur)
+			return nil
+		},
+	}
+	vpnStatusCmd.Flags().StringVar(&checkDomain, "domain", "example.com", "Domain to test through VPN")
+
 	vpnCmd.AddCommand(vpnScanCmd)
+	vpnCmd.AddCommand(vpnNewCmd)
+	vpnCmd.AddCommand(vpnStatusCmd)
 	rootCmd.AddCommand(vpnCmd)
 
 	ipsetCmd := &cobra.Command{
