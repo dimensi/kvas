@@ -5,6 +5,9 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
+
+	"kvasx/pkg/ipset"
+	"kvasx/pkg/route"
 )
 
 var (
@@ -37,10 +40,42 @@ func main() {
 	dnsCmd.AddCommand(dnsStatusCmd)
 	rootCmd.AddCommand(dnsCmd)
 
-	rootCmd.AddCommand(&cobra.Command{
+	vpnCmd := &cobra.Command{
 		Use:   "vpn",
 		Short: "VPN related commands",
-	})
+	}
+	vpnScanCmd := &cobra.Command{
+		Use:   "scan",
+		Short: "Scan VPN tunnel and configure iptables",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			fmt.Println("Adding iptables rule for VPN tunnel")
+			// default interface and set name
+			return route.AddTunnelRule("tun0", "kvas_vpn")
+		},
+	}
+	vpnCmd.AddCommand(vpnScanCmd)
+	rootCmd.AddCommand(vpnCmd)
+
+	ipsetCmd := &cobra.Command{
+		Use:   "ipset",
+		Short: "IPSet related commands",
+	}
+	ipsetAddCmd := &cobra.Command{
+		Use:   "add <domain>",
+		Short: "Add domain to ipset",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			domain := args[0]
+			if err := ipset.CreateSet("kvas_vpn", "hash:ip"); err != nil {
+				return err
+			}
+			fmt.Printf("Adding %s to ipset\n", domain)
+			return ipset.AddEntry("kvas_vpn", domain)
+		},
+	}
+	ipsetCmd.AddCommand(ipsetAddCmd)
+	rootCmd.AddCommand(ipsetCmd)
+
 	rootCmd.AddCommand(&cobra.Command{
 		Use:   "adblock",
 		Short: "Adblock related commands",
