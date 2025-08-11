@@ -6,6 +6,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"kvasx/pkg/dns"
 	"kvasx/pkg/ipset"
 	"kvasx/pkg/route"
 )
@@ -37,7 +38,17 @@ func main() {
 		},
 	}
 
+	dnsSetCmd := &cobra.Command{
+		Use:   "set <server>",
+		Short: "Set upstream DNS server",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return dns.SetServer(args[0])
+		},
+	}
+
 	dnsCmd.AddCommand(dnsStatusCmd)
+	dnsCmd.AddCommand(dnsSetCmd)
 	rootCmd.AddCommand(dnsCmd)
 
 	vpnCmd := &cobra.Command{
@@ -75,11 +86,6 @@ func main() {
 	}
 	ipsetCmd.AddCommand(ipsetAddCmd)
 	rootCmd.AddCommand(ipsetCmd)
-
-	rootCmd.AddCommand(&cobra.Command{
-		Use:   "adblock",
-		Short: "Adblock related commands",
-	})
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)
